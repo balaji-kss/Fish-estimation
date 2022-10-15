@@ -1,0 +1,12 @@
+data/
+loggers/
+output/
+__pycache__
+*.mp4
+*.avi
+*.csv
+*.jpg
+*.png
+*.pt
+*.pth
+*.log
