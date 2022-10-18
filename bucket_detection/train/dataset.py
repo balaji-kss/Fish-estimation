@@ -88,7 +88,7 @@ class BucketDataset(Dataset):
 
 if __name__ == "__main__":
 
-    root_dir = '/home/balaji/Documents/code/RSL/Fish/bucket_detection/train/data/'
+    root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
 
     transforms = transforms.Compose([
         transforms.ToPILImage(),
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         transforms.Normalize(mean=config.MEAN, std=config.STD)
     ])
 
-    dataset = BucketDataset(root_dir=root_dir, transform=transforms)
+    dataset = BucketDataset(root_dir=root_dir, transform=transforms, train=0)
 
     for i in range(len(dataset)):
 

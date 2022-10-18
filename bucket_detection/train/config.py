@@ -9,11 +9,11 @@ import os
 BASE_OUTPUT = "./output/"
 # define the path to the output model, label encoder, plots output
 # directory, and testing image paths
-MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models"])
+MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models1"])
 LE_PATH = os.path.sep.join([BASE_OUTPUT, "le.pickle"])
 PLOTS_PATH = os.path.sep.join([BASE_OUTPUT, "plots"])
 TEST_PATHS = os.path.sep.join([BASE_OUTPUT, "test_paths.txt"])
-root_dir = '/home/balaji/Documents/code/RSL/Fish/bucket_detection/train/data/'
+root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 PIN_MEMORY = True if DEVICE == "cuda" else False
@@ -25,7 +25,7 @@ STD = [0.229, 0.224, 0.225]
 INIT_LR = 1e-4
 NUM_EPOCHS = 50
 NUM_CLASSES = 1
-BATCH_SIZE = 32
+BATCH_SIZE = 16
 # specify the loss weights
 LABELS = 1.0
 BBOX = 1.0

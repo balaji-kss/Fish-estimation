@@ -1,3 +1,4 @@
+from sqlite3 import Row
 import numpy as np
 from imutils import paths
 import config
@@ -5,7 +6,7 @@ import cv2
 import os 
 import csv
     
-def populate_frames(video_path, skip_frames, start_frame, max_num_frame=100):
+def populate_frames(video_path, skip_frames, start_frame, max_num_frame=1000000):
 
     cap = cv2.VideoCapture(video_path)
     count = 0
@@ -48,7 +49,7 @@ def populate_anns(ann_dir, skip_frames):
     for csvPath in paths.list_files(ann_dir, validExts=(".csv")):
         # load the contents of the current CSV annotations file
         rows = open(csvPath).read().strip().split("\n")
-        
+    
         # loop over the rows
         for row in rows[1:]:
             # break the row into the filename, bounding box coordinates,
@@ -69,7 +70,7 @@ def populate_anns(ann_dir, skip_frames):
     
     return frame_dict
 
-def filter_anns(anns, area_max = 120 * 120):
+def filter_anns(anns, area_max = 110 * 110):
 
     filtered_anns = []
 
@@ -111,7 +112,6 @@ def pad_image(image, anns, pad_rg=(1.5, 3), debug=1):
         
         if debug:
             crop = draw_bbox(crop, [crop_ann])        
-
             cv2.imshow('img ', crop)
             cv2.waitKey(-1)
 
@@ -122,7 +122,80 @@ def pad_image(image, anns, pad_rg=(1.5, 3), debug=1):
         labels.append('bucket')
 
     return crops, crop_anns, labels
-     
+
+def get_pad_crop(roi, pad, img_shape):
+
+    sx, sy, ex, ey = roi
+    w, h = ex - sx, ey - sy
+    cx, cy =  sx + 0.5 * w, sy + 0.5 * h 
+    sz = 0.5 * (w + h)
+    H, W = img_shape[:2]
+
+    sx, sy = cx - pad * sz, cy - pad * sz
+    ex, ey = cx + pad * sz, cy + pad * sz
+
+    sx, sy = max(0, sx), max(0, sy)
+    ex, ey = min(W, ex), min(H, ey)
+
+    sx, sy = int(sx), int(sy)
+    ex, ey = int(ex), int(ey)
+
+    return [sx, sy, ex, ey]
+
+def checkin(bbox, roi):
+
+    bsx, bsy, bex, bey = bbox
+    rsx, rsy, rex, rey = roi
+
+    sx = 0
+    if bsx >= rsx and bsx <= rex:
+        sx = 1
+
+    sy = 0
+    if bsy >= rsy and bsy <= rey:
+        sy = 1
+    
+    ex = 0
+    if bex >= rsx and bex <= rex:
+        ex = 1
+    
+    ey = 0
+    if bey >= rsy and bey <= rey:
+        ey = 1
+
+    return sx and sy and ex and ey
+
+def pad_roi(image, anns, roi, pad_rg=(2, 3), debug=1):
+
+    pad_min, pad_max = pad_rg
+    pad = np.random.uniform(pad_min, pad_max)
+    H, W = image.shape[:2]
+
+    pad_roi = get_pad_crop(roi, pad, image.shape)
+    rsx, rsy, rex, rey = pad_roi
+    crop = image[rsy : rey, rsx : rex]
+    crop_anns, labels = [], []
+
+    for ann in anns:
+
+        if not checkin(ann, pad_roi):continue
+        sx, sy, ex, ey = ann
+        crop_ann = [sx - rsx, sy - rsy, ex - rsx, ey - rsy]
+        crop_anns.append(crop_ann)
+        labels.append('bucket')
+
+    if debug:
+        crop = draw_bbox(crop, crop_anns)        
+        cv2.imshow('img ', crop)
+        cv2.waitKey(-1)
+
+    print('len anns: ', len(crop_anns))
+    if len(crop_anns) == 0:
+        print('*****no annotation*****')
+        return None, None, None
+
+    return [crop], crop_anns, labels
+        
 def load_data(ann_dir, video_path, debug):
 
     print("[INFO] loading dataset...")
@@ -131,21 +204,31 @@ def load_data(ann_dir, video_path, debug):
     labels = []
 
     skip_frames = 1
-    frames = populate_frames(video_path, skip_frames, 0)
+    start_frame = 25443
+    frames = populate_frames(video_path, skip_frames, start_frame)
     frame_ann_dict = populate_anns(ann_dir, skip_frames)
 
     print('total frames: ', len(frames))
     print('total anns: ', len(frame_ann_dict))
 
     image_id = 0
-    for frameid, key in enumerate(frame_ann_dict.keys()):
+    roi = [600, 527, 720, 640]
+
+    for key in frame_ann_dict.keys():
+
+        frameid = key - start_frame
 
         if frameid>=len(frames):break
 
-        # print('key ', key, ' frameid ', frameid)
+        print('key ', key, ' frameid ', frameid)
         frame_ann_dict[key] = filter_anns(frame_ann_dict[key])
 
-        crops, crop_anns, crop_labels = pad_image(frames[frameid], frame_ann_dict[key], debug=debug)
+        # crops, crop_anns, crop_labels = pad_image(frames[frameid], frame_ann_dict[key], debug=debug)
+        #if len(frame_ann_dict[key]) == 0: continue
+
+        crops, crop_anns, crop_labels = pad_roi(frames[frameid], frame_ann_dict[key], roi, debug=debug)
+
+        if crop_anns is None:continue
 
         data += crops
         bboxes += crop_anns
@@ -156,7 +239,6 @@ def load_data(ann_dir, video_path, debug):
             
             cv2.imshow('img ', img)
             cv2.waitKey(-1)
-
         
 
     return data, bboxes, labels
@@ -188,9 +270,9 @@ def save_data(data, anns, save_dir):
 
 if __name__ == "__main__":
 
-    ann_dir = '/home/balaji/Documents/code/RSL/Fish/bucket_detection/annotate/csv_files/'
-    video_dir = '/home/balaji/Documents/code/RSL/Fish/videos/2068016.mp4'
-    save_dir = '/home/balaji/Documents/code/RSL/Fish/bucket_detection/train/data/'
+    ann_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/csv_files/'
+    video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116.mp4'
+    save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
     data, bboxes, labels = load_data(ann_dir, video_dir, debug=0)
     save_data(data, bboxes, save_dir)
     

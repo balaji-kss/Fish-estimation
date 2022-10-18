@@ -81,5 +81,5 @@ def test(epoch_num):
 
 if __name__ == "__main__":
 
-	epoch_num = 50
+	epoch_num = 15
 	test(epoch_num)	
