@@ -56,9 +56,9 @@ def populate_anns(ann_dir, skip_frames):
             # and class label
             row = row.split(",")
             
-            row = [int(ele) for ele in row]
+            row = [int(float(ele)) for ele in row]
             
-            (idx, startX, startY, w, h, frame_id, video_id) = row
+            (idx, frame_id, startX, startY, w, h, video_id) = row
             endX, endY = startX + w, startY + h
 
             if frame_id%skip_frames!=0:continue
@@ -70,7 +70,7 @@ def populate_anns(ann_dir, skip_frames):
     
     return frame_dict
 
-def filter_anns(anns, area_max = 110 * 110):
+def filter_anns(anns, area_max = 1100 * 1100):
 
     filtered_anns = []
 
@@ -204,9 +204,9 @@ def load_data(ann_dir, video_path, debug):
     labels = []
 
     skip_frames = 1
-    start_frame = 25443
-    frames = populate_frames(video_path, skip_frames, start_frame)
+    start_frame = 25442
     frame_ann_dict = populate_anns(ann_dir, skip_frames)
+    frames = populate_frames(video_path, skip_frames, start_frame)
 
     print('total frames: ', len(frames))
     print('total anns: ', len(frame_ann_dict))

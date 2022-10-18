@@ -57,6 +57,8 @@ def test(epoch_num):
 		# print('labels shape ', labels.shape) #[1]
 
 		predictions = model(images)
+		conf = torch.nn.Softmax(dim=-1)(predictions[1])
+		print('conf ', conf)
 
 		bbox_loss = bbox_loss_func(predictions[0], bboxes)
 		total_box_loss += bbox_loss
@@ -73,6 +75,7 @@ def test(epoch_num):
 		pred_bbox_remap = utils.remap_bbox(predictions[0], orig_image.shape)
 		gt_bbox_remap = utils.remap_bbox(bboxes, orig_image.shape)
 
+		print('gt: ', gt_bbox_remap, ' pred: ', pred_bbox_remap)
 		disp_image = utils.draw_bbox(orig_image, pred_bbox_remap, color=(0, 0, 255))
 		disp_image = utils.draw_bbox(disp_image, gt_bbox_remap, color=(255, 0, 0))
 
@@ -81,5 +84,5 @@ def test(epoch_num):
 
 if __name__ == "__main__":
 
-	epoch_num = 15
+	epoch_num = 50
 	test(epoch_num)	
