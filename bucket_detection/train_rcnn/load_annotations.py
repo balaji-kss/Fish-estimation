@@ -35,10 +35,10 @@ def draw_bbox(org_image, anns):
     image = np.copy(org_image)
     for ann in anns:
 
-        startX, startY, endX, endY = ann
+        startX, startY, endX, endY, fill = ann
         w, h = endX - startX, endY - startY
 
-        image = cv2.putText(image, str(w) + ', ' + str(h), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
+        image = cv2.putText(image, str(w) + ', ' + str(h) + ', ' + str(fill), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
         image = cv2.rectangle(image, (startX, startY), (endX, endY), (255, 0, 0), 1)
 
     return image
@@ -57,17 +57,19 @@ def populate_anns(ann_dir, skip_frames):
             # and class label
             row = row.split(",")
             
-            row = [int(float(ele)) for ele in row]
+            row = [float(ele) for ele in row]
             
-            (idx, frame_id, startX, startY, w, h, video_id) = row
+            (idx, frame_id, startX, startY, w, h, fill, video_id) = row
+            idx, frame_id, startX, startY, w, h = int(idx), int(frame_id), int(startX), int(startY), int(w), int(h)
+            video_id = int(video_id)
             endX, endY = startX + w, startY + h
 
             if frame_id%skip_frames!=0:continue
             
             if frame_id in frame_dict:
-                frame_dict[frame_id].append([startX, startY, endX, endY])
+                frame_dict[frame_id].append([startX, startY, endX, endY, fill])
             else:
-                frame_dict[frame_id] = [[startX, startY, endX, endY]]
+                frame_dict[frame_id] = [[startX, startY, endX, endY, fill]]
     
     return frame_dict
 
@@ -76,12 +78,12 @@ def filter_anns(anns, area_max = 1100 * 1100):
     filtered_anns = []
 
     for ann in anns:
-        startX, startY, endX, endY = ann
+        startX, startY, endX, endY, fill = ann
         w, h = endX - startX, endY - startY
 
         if w <= 0 or h <= 0 or w * h >= area_max:continue
 
-        filtered_anns.append([startX, startY, endX, endY])
+        filtered_anns.append([startX, startY, endX, endY, fill])
 
     return filtered_anns
 
@@ -126,7 +128,7 @@ def pad_image(image, anns, pad_rg=(1.5, 3), debug=1):
 
 def checkin(bbox, roi):
 
-    bsx, bsy, bex, bey = bbox
+    bsx, bsy, bex, bey = bbox[:4]
     rsx, rsy, rex, rey = roi
 
     sx = 0
@@ -161,9 +163,9 @@ def pad_roi(image, anns, roi, pad_rg=(2, 2.001), debug=1):
     for ann in anns:
 
         if not checkin(ann, pad_roi):continue
-        sx, sy, ex, ey = ann
+        sx, sy, ex, ey, fill = ann
         crop_ann = [sx - rsx, sy - rsy, ex - rsx, ey - rsy]
-        crop_anns.append(crop_ann)
+        crop_anns.append(crop_ann + [fill])
         labels.append('bucket')
 
     if debug:
@@ -238,7 +240,7 @@ def save_data(data, anns, save_dir):
         cv2.imwrite(save_img_path, img)
         img_id += 1
 
-    csv_path = os.path.join(save_dir, 'bucket_anns.csv')
+    csv_path = os.path.join(save_dir, 'det_est_anns.csv')
     with open(csv_path, 'w+') as f:
         writer = csv.writer(f)
 
@@ -254,7 +256,7 @@ if __name__ == "__main__":
 
     ann_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/csv_files/'
     video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116.mp4'
-    save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
+    save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
     data, bboxes, labels = load_data(ann_dir, video_dir, debug=0)
     save_data(data, bboxes, save_dir)
     

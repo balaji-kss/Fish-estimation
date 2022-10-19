@@ -19,7 +19,7 @@ class BucketDataset(Dataset):
                 on a sample.
         """
 
-        self.csv_path = os.path.join(root_dir, 'bucket_anns.csv')
+        self.csv_path = os.path.join(root_dir, 'det_est_anns.csv')
         self.anns = pd.read_csv(self.csv_path)
         self.root_dir = root_dir
         self.input_res = input_res
@@ -58,7 +58,7 @@ class BucketDataset(Dataset):
         image = utils.make_square(image)
         org_img = np.copy(image)
 
-        bbox = self.anns.iloc[idx, 1:]
+        bbox = self.anns.iloc[idx, 1:-1]
 
         bbox = self.preprocess_anns(bbox, image.shape, self.input_res)
         image = self.preprocess_image(image)
@@ -82,7 +82,7 @@ class BucketDataset(Dataset):
 
 if __name__ == "__main__":
 
-    root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
+    root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
     input_res = 512
     dataset = BucketDataset(root_dir=root_dir, input_res=input_res)
 
@@ -92,7 +92,7 @@ if __name__ == "__main__":
         print(i, image.shape, target['boxes'].shape)
 
         bbox = target['boxes']
-
+        image = image.permute(1, 2, 0).numpy()
         org_image = utils.remap_image(image)
 
         bbox_remap = utils.remap_bbox(bbox, org_image.shape, scale=input_res)

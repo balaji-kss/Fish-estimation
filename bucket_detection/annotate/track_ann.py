@@ -18,7 +18,7 @@ def load_csv_anns(input_csv_file):
 
     return intervals, bboxes, fill_ests
 
-def get_tracker_anns(video_path, intervals, bboxes):
+def get_tracker_anns(video_path, intervals, bboxes, fill_ests):
 
     cap = cv2.VideoCapture(video_path)
     frameid = 0
@@ -38,15 +38,15 @@ def get_tracker_anns(video_path, intervals, bboxes):
 
         if frameid in intervals:
             index = intervals.index(frameid)
-            ann = bboxes[index]
+            ann = bboxes[index]  + [fill_ests[index]]
             tracker = cv2.legacy.TrackerCSRT_create()
-            tracker.init(frame, ann)
+            tracker.init(frame, bboxes[index])
             trackers[index] = tracker
             cur_track_idx = index
         elif cur_track_idx is not None and (frameid - intervals[cur_track_idx]) < num_track_frames:
             (success, box) = trackers[cur_track_idx].update(frame)
             if success:
-                ann = list(box)
+                ann = list(box) + [fill_ests[cur_track_idx]]
         
         if ann is None: continue
         
@@ -99,7 +99,7 @@ def save_ann_csv(anns, save_csv_file):
     df["y"] = anns_np[:, 2].tolist()
     df["w"] = anns_np[:, 3].tolist()
     df["h"] = anns_np[:, 4].tolist()
-    
+    df["fill"] = anns_np[:, 5].tolist()
     df["video_id"] = [2068116] * len(df["x"])
 
     df.to_csv(save_csv_file)
@@ -117,8 +117,9 @@ if __name__ == '__main__' :
     save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/det_est_ann_116.csv'
 
     intervals, bboxes, fill_ests = load_csv_anns(input_csv_file)
-    # anns = get_tracker_anns(video_path, intervals, bboxes)
 
-    # save_ann_csv(anns, save_csv_file)
+    anns = get_tracker_anns(video_path, intervals, bboxes, fill_ests)
+
+    save_ann_csv(anns, save_csv_file)
 
     # add_frame_nums(video_path)
