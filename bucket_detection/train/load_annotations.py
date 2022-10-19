@@ -165,7 +165,7 @@ def checkin(bbox, roi):
 
     return sx and sy and ex and ey
 
-def pad_roi(image, anns, roi, pad_rg=(2, 3), debug=1):
+def pad_roi(image, anns, roi, pad_rg=(2, 2.001), debug=1):
 
     pad_min, pad_max = pad_rg
     pad = np.random.uniform(pad_min, pad_max)

@@ -22,7 +22,7 @@ def get_tracker_anns(video_path, intervals, bboxes):
     cap = cv2.VideoCapture(video_path)
     frameid = 0
     
-    num_track_frames = 200
+    num_track_frames = 150
     trackers = [0] * len(intervals)
     cur_track_idx = None
     anns = []

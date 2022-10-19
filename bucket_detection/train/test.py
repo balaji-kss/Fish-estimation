@@ -72,8 +72,8 @@ def test(epoch_num):
 		avg_box_loss_np = avg_box_loss.cpu().detach().numpy()
 
 		# display
-		pred_bbox_remap = utils.remap_bbox(predictions[0], orig_image.shape)
-		gt_bbox_remap = utils.remap_bbox(bboxes, orig_image.shape)
+		pred_bbox_remap = utils.remap_bbox(predictions[0], orig_image.shape, scale=224)
+		gt_bbox_remap = utils.remap_bbox(bboxes, orig_image.shape, scale=224)
 
 		print('gt: ', gt_bbox_remap, ' pred: ', pred_bbox_remap)
 		disp_image = utils.draw_bbox(orig_image, pred_bbox_remap, color=(0, 0, 255))
@@ -84,5 +84,5 @@ def test(epoch_num):
 
 if __name__ == "__main__":
 
-	epoch_num = 50
+	epoch_num = 30
 	test(epoch_num)	

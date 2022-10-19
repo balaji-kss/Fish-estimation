@@ -22,8 +22,8 @@ class ObjectDetector(Module):
             ReLU(),
             Linear(64, 32),
             ReLU(),
-            Linear(32, 4),
-            Sigmoid()
+            Linear(32, 4)
+            #Sigmoid()
         )
 
         self.classifier = Sequential(

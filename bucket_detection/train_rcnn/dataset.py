@@ -4,14 +4,13 @@ import numpy as np
 import pandas as pd 
 import cv2
 import os
-import config 
 from torchvision import transforms
 import utils
 
 class BucketDataset(Dataset):
     """Bucket dataset."""
 
-    def __init__(self, root_dir, input_res=224, transform=None, train=1):
+    def __init__(self, root_dir, input_res=512):
         """
         Args:
             csv_file (string): Path to the csv file with annotations.
@@ -23,9 +22,7 @@ class BucketDataset(Dataset):
         self.csv_path = os.path.join(root_dir, 'bucket_anns.csv')
         self.anns = pd.read_csv(self.csv_path)
         self.root_dir = root_dir
-        self.transform = transform
         self.input_res = input_res
-        self.train = train
 
     def preprocess_anns(self, ann, img_shape, scale=1):
 
@@ -51,9 +48,10 @@ class BucketDataset(Dataset):
 
     def preprocess_image(self, image):
         
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
         image = cv2.resize(image, (self.input_res, self.input_res))
-
+        image /= 255.0
+        
         return image
 
     def __len__(self):
@@ -75,40 +73,46 @@ class BucketDataset(Dataset):
         bbox = self.preprocess_anns(bbox, image.shape, self.input_res)
         image = self.preprocess_image(image)
         
-        bbox = np.array([bbox]).astype('float')
+        bbox = torch.as_tensor([bbox], dtype=torch.float32)
+        area = (bbox[:, 3] - bbox[:, 1]) * (bbox[:, 2] - bbox[:, 0])
+        
+        iscrowd = torch.zeros((bbox.shape[0],), dtype=torch.int64)
+        labels = torch.as_tensor([1], dtype=torch.int64)
 
-        if self.transform:
-            image = self.transform(image)
+        target = {}
+        target["boxes"] = bbox
+        target["labels"] = labels
+        target["area"] = area
+        target["iscrowd"] = iscrowd
+        image_id = torch.tensor([idx])
+        target["image_id"] = image_id
+        image = transforms.ToTensor()(image)
 
-        if self.train:
-            sample = {'image': image, 'bbox': bbox}
-        else:
-            sample = {'image': image, 'bbox': bbox, 'original_image': org_img}
+        return image, target
 
-        return sample
+def remap_image(image):
+
+    image *= 255.0
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR).astype(np.uint8)
+
+    return image
 
 if __name__ == "__main__":
 
     root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
-
-    transforms = transforms.Compose([
-        transforms.ToPILImage(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean=config.MEAN, std=config.STD)
-    ])
-
-    dataset = BucketDataset(root_dir=root_dir, transform=transforms, train=0)
+    input_res = 512
+    dataset = BucketDataset(root_dir=root_dir, input_res=input_res)
 
     for i in range(len(dataset)):
 
-        sample = dataset[i]
-        print(i, sample['image'].shape, sample['bbox'].shape)
+        image, target = dataset[i]
+        print(i, image.shape, target['boxes'].shape)
 
-        image = sample['image']
-        bbox = sample['bbox']
-        org_image = sample['original_image']
-        
-        bbox_remap = utils.remap_bbox(bbox, org_image.shape, scale=224)
+        bbox = target['boxes']
+
+        org_image = remap_image(image)
+
+        bbox_remap = utils.remap_bbox(bbox, org_image.shape, scale=input_res)
         org_image = utils.draw_bbox(org_image, bbox_remap)
 
         cv2.imshow('image ', org_image)

@@ -51,7 +51,7 @@ bboxLossFunc = MSELoss()
 # initialize the optimizer, compile the model, and show the model
 # summary
 optimizer = Adam(objectDetector.parameters(), lr=config.INIT_LR)
-scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[20, 40], gamma=0.1)
+#scheduler = lr_scheduler.MultiStepLR(optimizer, milestones=[20, 40], gamma=0.1)
 
 print(objectDetector)
 objectDetector.train()
@@ -67,7 +67,7 @@ for num_epoch in tqdm(range(config.NUM_EPOCHS)):
 	totalboxloss = 0
 	totalclsloss = 0
 	trainCorrect = 0
-	label = 0
+	label = 1
 	steps = 0
 	startTime = time.time()
 
@@ -117,7 +117,7 @@ for num_epoch in tqdm(range(config.NUM_EPOCHS)):
 	print("Time: {:.3f}, Train loss: {:.6f}, Train box loss: {:.6f}, Train cls loss: {:.6f}, Train accuracy: {:.4f}".format(
 		time_elapsed, avgTrainLoss, avgboxloss, avgclsloss, trainCorrect))
 
-	scheduler.step()
+	#scheduler.step()
 	if (num_epoch + 1) % 5 == 0:
 		print("[INFO] saving object detector model...")
 		model_path = os.path.join(config.MODEL_DIR, str(num_epoch+1) + '.pth') 

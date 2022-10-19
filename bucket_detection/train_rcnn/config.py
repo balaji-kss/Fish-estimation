@@ -9,7 +9,7 @@ import os
 BASE_OUTPUT = "./output/"
 # define the path to the output model, label encoder, plots output
 # directory, and testing image paths
-MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models1"])
+MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models"])
 LE_PATH = os.path.sep.join([BASE_OUTPUT, "le.pickle"])
 PLOTS_PATH = os.path.sep.join([BASE_OUTPUT, "plots"])
 TEST_PATHS = os.path.sep.join([BASE_OUTPUT, "test_paths.txt"])
@@ -23,9 +23,9 @@ STD = [0.229, 0.224, 0.225]
 # initialize our initial learning rate, number of epochs to train
 # for, and the batch size
 INIT_LR = 1e-3
-NUM_EPOCHS = 40
+NUM_EPOCHS = 50
 NUM_CLASSES = 2
-BATCH_SIZE = 16
+BATCH_SIZE = 8
 # specify the loss weights
 LABELS = 1.0
 BBOX = 1.0
