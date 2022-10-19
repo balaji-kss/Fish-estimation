@@ -39,7 +39,7 @@ def train():
     
     print("[INFO] training the network...", flush=True)
 
-    for epoch in range(config.NUM_EPOCHS):
+    for epoch in range(config.NUM_EPOCHS + 1):
 
         tloss_value, tloss_cls, tloss_box_reg, tloss_obj, tloss_rpn_box_reg = 0, 0, 0, 0, 0 
         steps = 0
@@ -81,13 +81,13 @@ def train():
         avg_tloss_obj = tloss_obj / steps
         avg_tloss_rpn_box_reg = tloss_rpn_box_reg / steps
 
-        print("[INFO] EPOCH: {}/{}".format(epoch + 1, config.NUM_EPOCHS), flush=True)
+        print("[INFO] EPOCH: {}/{}".format(epoch, config.NUM_EPOCHS), flush=True)
         print("Time: {:.3f}, Train loss: {:.6f}, Train cls loss: {:.6f}, Train box loss: {:.6f}, Train obj loss: {:.6f}, Train rpn box loss: {:.6f}".format(
 		time_elapsed, avg_tloss_value, avg_tloss_cls, avg_tloss_box_reg, avg_tloss_obj, avg_tloss_rpn_box_reg), flush=True)
 
         if epoch % 5 == 0:
             print("[INFO] saving object detector model...", flush=True)
-            model_path = os.path.join(config.MODEL_DIR, str(epoch+1) + '.pth') 
+            model_path = os.path.join(config.MODEL_DIR, str(epoch) + '.pth') 
             torch.save(model.state_dict(), model_path)
 
 def test():

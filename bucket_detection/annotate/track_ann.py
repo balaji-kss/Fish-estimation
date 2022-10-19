@@ -9,13 +9,14 @@ def load_csv_anns(input_csv_file):
 
     dataframe = pd.read_csv(input_csv_file)
     dataframe = dataframe[dataframe.Species!="VERTEBRATES, UNCLASSIFIED"]
-    intervals, bboxes = [], [] 
-    
+    intervals, bboxes, fill_ests = [], [], [] 
+
     for idx, row in dataframe.iterrows():
         intervals.append(row["frame"])
         bboxes.append([row["x"],row["y"],row["width"],row["height"]])
+        fill_ests.append(row["Fill Level"])
 
-    return intervals, bboxes
+    return intervals, bboxes, fill_ests
 
 def get_tracker_anns(video_path, intervals, bboxes):
 
@@ -113,11 +114,11 @@ if __name__ == '__main__' :
     
     input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/only_fish_116.csv'
     video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116_f.mp4'
-    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/bucket_ann_116.csv'
+    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/det_est_ann_116.csv'
 
-    intervals, bboxes = load_csv_anns(input_csv_file)
-    anns = get_tracker_anns(video_path, intervals, bboxes)
+    intervals, bboxes, fill_ests = load_csv_anns(input_csv_file)
+    # anns = get_tracker_anns(video_path, intervals, bboxes)
 
-    save_ann_csv(anns, save_csv_file)
+    # save_ann_csv(anns, save_csv_file)
 
     # add_frame_nums(video_path)
