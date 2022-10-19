@@ -2,12 +2,13 @@
 from dataset import BucketDataset
 import config
 from torch.utils.data import DataLoader
-from tqdm import tqdm
 from torch.optim import lr_scheduler
 import torch
 import time
 import os
 from model import create_model
+import cv2
+import utils
 
 def data_loader(input_res):
 
@@ -21,14 +22,17 @@ def data_loader(input_res):
     train_loader = DataLoader(train_dataset, batch_size=config.BATCH_SIZE,
 	shuffle=True, num_workers=0, collate_fn=collate_fn)
 
-    return train_loader
+    test_loader = DataLoader(train_dataset, batch_size=1,
+	shuffle=False, num_workers=0, collate_fn=collate_fn)
+
+    return train_loader, test_loader
 
 def train():
 
     model = create_model(num_classes=config.NUM_CLASSES)
     model = model.to(config.DEVICE)
 
-    train_loader = data_loader(input_res)
+    train_loader, _ = data_loader(input_res)
 
     params = [p for p in model.parameters() if p.requires_grad]
     optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
@@ -86,7 +90,43 @@ def train():
             model_path = os.path.join(config.MODEL_DIR, str(epoch+1) + '.pth') 
             torch.save(model.state_dict(), model_path)
 
+def test():
+
+    model = create_model(num_classes=config.NUM_CLASSES)
+    model_path = os.path.join(config.MODEL_DIR, str(epoch_num) + '.pth')
+    model.load_state_dict(torch.load(model_path))
+    model = model.to(config.DEVICE)
+    model.eval()
+
+    _, test_loader = data_loader(input_res)
+
+    for images, targets in test_loader:
+
+        images = list(image.to(config.DEVICE) for image in images)
+        output = model(images)[0]
+
+        gt_boxes = targets[0]['boxes']
+        pred_boxes = output['boxes'].data.cpu().numpy().astype('int')
+        scores = output['scores'].data.cpu().numpy()
+        image = images[0].permute(1, 2, 0).cpu().numpy()
+
+        image = utils.remap_image(image)
+        for score, box in zip(scores, pred_boxes):
+            image = cv2.putText(image, str(round(score, 3)), (box[0], box[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)
+            cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 1)
+
+        gt_boxes = gt_boxes.cpu().numpy().astype('int')
+
+        for gt_box in gt_boxes:
+            cv2.rectangle(image, (gt_box[0], gt_box[1]), (gt_box[2], gt_box[3]), (255, 0, 0), 1)
+
+        cv2.imshow('image ', image)
+        cv2.waitKey(-1)
+
 if __name__ == '__main__':
 
     input_res = 512
-    train()
+    #train()
+
+    epoch_num = 16
+    test()

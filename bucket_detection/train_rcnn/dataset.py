@@ -36,16 +36,6 @@ class BucketDataset(Dataset):
 
         return [startX, startY, endX, endY]
 
-    def make_square(self, image):
-
-        h, w = image.shape[:2]
-        sz = max(h, w)
-
-        pad_image = np.zeros((sz, sz, 3), dtype='uint8')
-        pad_image[:h, :w] = image
-        
-        return pad_image
-
     def preprocess_image(self, image):
         
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB).astype(np.float32)
@@ -65,7 +55,7 @@ class BucketDataset(Dataset):
 
         img_path = os.path.join(self.root_dir, self.anns.iloc[idx, 0])
         image = cv2.imread(img_path)
-        image = self.make_square(image)
+        image = utils.make_square(image)
         org_img = np.copy(image)
 
         bbox = self.anns.iloc[idx, 1:]
@@ -90,13 +80,6 @@ class BucketDataset(Dataset):
 
         return image, target
 
-def remap_image(image):
-
-    image *= 255.0
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR).astype(np.uint8)
-
-    return image
-
 if __name__ == "__main__":
 
     root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
@@ -110,7 +93,7 @@ if __name__ == "__main__":
 
         bbox = target['boxes']
 
-        org_image = remap_image(image)
+        org_image = utils.remap_image(image)
 
         bbox_remap = utils.remap_bbox(bbox, org_image.shape, scale=input_res)
         org_image = utils.draw_bbox(org_image, bbox_remap)
