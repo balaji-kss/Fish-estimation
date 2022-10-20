@@ -72,11 +72,7 @@ def train():
 
 def test():
 
-    model = Network(num_classes=config.NUM_CLASSES)
-    model_path = os.path.join(config.MODEL_DIR, str(epoch_num) + '.pth')
-    model.load_state_dict(torch.load(model_path))
-    model = model.to(config.DEVICE)
-    model.eval()
+    model = load_fillest_model()
 
     _, test_loader = data_loader(input_res)
 
