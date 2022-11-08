@@ -23,8 +23,22 @@ class BucketDataset(Dataset):
         self.anns = pd.read_csv(self.csv_path)
         self.root_dir = root_dir
         self.input_res = input_res
+        self.reformat_anns()
 
-    def preprocess_anns(self, ann, img_shape, scale=1):
+    def reformat_anns(self):
+
+        reform_anns = {}
+
+        for i in range(len(self.anns)):
+            imgname, ann = self.anns.iloc[i, 0], self.anns.iloc[i, 1:]
+            if imgname not in reform_anns:
+                reform_anns[imgname] = [ann]
+            else:
+                reform_anns[imgname].append(ann)
+
+        self.anns = [[key, reform_anns[key]] for key in reform_anns.keys()]
+
+    def preprocess_boxes(self, ann, img_shape, scale=1):
 
         h, w = img_shape[:2]
 
@@ -53,17 +67,21 @@ class BucketDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_path = os.path.join(self.root_dir, self.anns.iloc[idx, 0])
+        rel_img_path, anns = self.anns[idx]
+
+        img_path = os.path.join(self.root_dir, rel_img_path)
         image = cv2.imread(img_path)
         image = utils.make_square(image)
-        org_img = np.copy(image)
 
-        bbox = self.anns.iloc[idx, 1:-1]
+        bboxes = []
+        for ann in anns:
+            bbox = ann[:-1]
+            pre_bbox = self.preprocess_boxes(bbox, image.shape, self.input_res)
+            bboxes.append(pre_bbox)
 
-        bbox = self.preprocess_anns(bbox, image.shape, self.input_res)
         image = self.preprocess_image(image)
         
-        bbox = torch.as_tensor([bbox], dtype=torch.float32)
+        bbox = torch.as_tensor(bboxes, dtype=torch.float32)
         area = (bbox[:, 3] - bbox[:, 1]) * (bbox[:, 2] - bbox[:, 0])
         
         iscrowd = torch.zeros((bbox.shape[0],), dtype=torch.int64)
@@ -94,7 +112,7 @@ if __name__ == "__main__":
         bbox = target['boxes']
         image = image.permute(1, 2, 0).numpy()
         org_image = utils.remap_image(image)
-
+        
         bbox_remap = utils.remap_bbox(bbox, org_image.shape, scale=input_res)
         org_image = utils.draw_bbox(org_image, bbox_remap)
 

@@ -433,7 +433,7 @@ def process_section(
     logging.info(f"Processing section: {section_name}")
 
     for media_index, media in enumerate(medias):
-        if media.id in [2067844]:
+        if media.id in [2067840,2067844,2068112,2068120,2067865]:
             msg = f"Processing localizations of media (ID={media.id}) {media_index+1}/{len(medias)}"
             print(msg)
             logging.info(msg)

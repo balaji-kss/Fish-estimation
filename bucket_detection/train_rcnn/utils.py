@@ -1,27 +1,35 @@
 import numpy as np
 import cv2
 
-def draw_bbox(org_image, ann, color=((255, 0, 0))):
+def draw_bbox(org_image, anns):
 
     image = np.copy(org_image)
+    for ann in anns:
 
-    startX, startY, endX, endY = ann
-    startX, startY, endX, endY = int(startX), int(startY), int(endX), int(endY)
-    # image = cv2.putText(image, str(w) + ', ' + str(h), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
-    image = cv2.rectangle(image, (startX, startY), (endX, endY), color, 1)
+        if len(ann) == 5:
+            startX, startY, endX, endY, fill = ann
+        elif len(ann) == 4:
+            startX, startY, endX, endY = ann
+            
+        w, h = endX - startX, endY - startY
+
+        # image = cv2.putText(image, str(w) + ', ' + str(h) + ', ' + str(fill), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
+        image = cv2.rectangle(image, (startX, startY), (endX, endY), (255, 0, 0), 1)
 
     return image
 
-def remap_bbox(pred_bbox, img_shape, scale=1):
+def remap_bbox(pred_bboxes, img_shape, scale=1):
 
-	H, W = img_shape[:2]
-	pred_bbox = np.squeeze(pred_bbox)
+    H, W = img_shape[:2]
 
-	startX, startY, endX, endY = pred_bbox
-	startX, startY, endX, endY = startX * W/scale, startY * H/scale, endX * W/scale, endY * H/scale
-	startX, startY, endX, endY = int(startX), int(startY), int(endX), int(endY)
+    remap_bboxes = []
+    for pred_bbox in pred_bboxes:
+        startX, startY, endX, endY = pred_bbox
+        startX, startY, endX, endY = startX * W/scale, startY * H/scale, endX * W/scale, endY * H/scale
+        startX, startY, endX, endY = int(startX), int(startY), int(endX), int(endY)
+        remap_bboxes.append([startX, startY, endX, endY])
 
-	return [startX, startY, endX, endY]
+    return remap_bboxes
 
 def remap_image(image):
 

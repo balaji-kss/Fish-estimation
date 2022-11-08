@@ -29,19 +29,6 @@ def populate_frames(video_path, skip_frames, start_frame, max_num_frame=1000000)
             break
     
     return frames
-    
-def draw_bbox(org_image, anns):
-
-    image = np.copy(org_image)
-    for ann in anns:
-
-        startX, startY, endX, endY, fill = ann
-        w, h = endX - startX, endY - startY
-
-        image = cv2.putText(image, str(w) + ', ' + str(h) + ', ' + str(fill), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
-        image = cv2.rectangle(image, (startX, startY), (endX, endY), (255, 0, 0), 1)
-
-    return image
 
 def populate_anns(ann_dir, skip_frames):
 
@@ -114,7 +101,7 @@ def pad_image(image, anns, pad_rg=(1.5, 3), debug=1):
         crop_ann = [startX - sx, startY - sy, endX  - sx, endY  - sy]
         
         if debug:
-            crop = draw_bbox(crop, [crop_ann])        
+            crop = utils.draw_bbox(crop, [crop_ann])        
             cv2.imshow('img ', crop)
             cv2.waitKey(-1)
 
@@ -149,7 +136,7 @@ def checkin(bbox, roi):
 
     return sx and sy and ex and ey
 
-def pad_roi(image, anns, roi, pad_rg=(2, 2.001), debug=1):
+def pad_roi(image, anns, roi, pad_rg=(2.0, 3.0), debug=1):
 
     pad_min, pad_max = pad_rg
     pad = np.random.uniform(pad_min, pad_max)
@@ -169,7 +156,7 @@ def pad_roi(image, anns, roi, pad_rg=(2, 2.001), debug=1):
         labels.append('bucket')
 
     if debug:
-        crop = draw_bbox(crop, crop_anns)        
+        crop = utils.draw_bbox(crop, crop_anns)        
         cv2.imshow('img ', crop)
         cv2.waitKey(-1)
 
@@ -211,31 +198,35 @@ def load_data(ann_dir, video_path, debug):
         # crops, crop_anns, crop_labels = pad_image(frames[frameid], frame_ann_dict[key], debug=debug)
         #if len(frame_ann_dict[key]) == 0: continue
 
-        crops, crop_anns, crop_labels = pad_roi(frames[frameid], frame_ann_dict[key], roi, debug=debug)
+        crop, crop_anns, crop_labels = pad_roi(frames[frameid], frame_ann_dict[key], roi, debug=debug)
 
         if crop_anns is None:continue
 
-        data += crops
-        bboxes += crop_anns
-        labels += crop_labels
+        data += crop
+        bboxes += [crop_anns]
+        labels += [crop_labels]
 
         if 0:
-            img = draw_bbox(frames[frameid], frame_ann_dict[key])
+            img = utils.draw_bbox(frames[frameid], frame_ann_dict[key])
             img = cv2.rectangle(img, (roi[0], roi[1]), (roi[2], roi[3]), (0, 0, 255), 3)
             cv2.imshow('img ', img)
             cv2.waitKey(-1)
         
-
     return data, bboxes, labels
 
 def save_data(data, anns, save_dir):
 
-    assert len(data) == len(anns)
+    imgdir_name = 'images' + str(video_id) + '/'
+    save_img_dir = os.path.join(save_dir, imgdir_name)
+
+    if not os.path.exists(save_img_dir):
+        os.makedirs(save_img_dir)
 
     for img_id, img in enumerate(data):
         
-        img_name = 'images/' + str(img_id) + '.jpg'
-        save_img_path = os.path.join(save_dir, img_name)
+        img_name = str(img_id) + '.jpg'
+
+        save_img_path = os.path.join(save_img_dir, img_name)
         print('save_img_path ', save_img_path)
 
         cv2.imwrite(save_img_path, img)
@@ -246,11 +237,11 @@ def save_data(data, anns, save_dir):
         writer = csv.writer(f)
 
         # write the data
-        for img_id, ann in enumerate(anns):
+        for img_id, ann_img in enumerate(anns):
 
-            rel_img_path = 'images/' + str(img_id) + '.jpg'
-            
-            writer.writerow([rel_img_path] + ann)
+            rel_img_path = imgdir_name + str(img_id) + '.jpg'
+            for ann in ann_img:
+                writer.writerow([rel_img_path] + ann)
 
 
 if __name__ == "__main__":
@@ -258,6 +249,8 @@ if __name__ == "__main__":
     ann_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/csv_files/'
     video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067840.mp4'
     save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
-    data, bboxes, labels = load_data(ann_dir, video_dir, debug=1)
+    video_id = 2067840
+    data, bboxes, labels = load_data(ann_dir, video_dir, debug=0)
+    print(len(data), len(bboxes), len(labels))
     save_data(data, bboxes, save_dir)
     
