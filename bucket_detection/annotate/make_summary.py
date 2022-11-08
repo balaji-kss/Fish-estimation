@@ -198,7 +198,6 @@ def process_localization(
 
             if loc_y_pixels - margin_y < 0:
                 margin_y = loc_y_pixels
-
             elif loc_y_pixels + margin_y > height:
                 margin_y = height - loc_y_pixels
 
@@ -434,7 +433,7 @@ def process_section(
     logging.info(f"Processing section: {section_name}")
 
     for media_index, media in enumerate(medias):
-        if media.id in [2068116]:
+        if media.id in [2067844]:
             msg = f"Processing localizations of media (ID={media.id}) {media_index+1}/{len(medias)}"
             print(msg)
             logging.info(msg)
@@ -457,7 +456,7 @@ def process_section(
                     max_retries = 10
                     # if(i>4):
                     #     break
-                    while localization.frame in [25442,25798,26118,26418,26838,27066,27390,47489,48985,50069,50381,50713,51293,51817,52278]:
+                    while True:
                         try:
                             datum = process_localization(
                                 host=host,

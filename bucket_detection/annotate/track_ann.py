@@ -5,25 +5,47 @@ import pandas as pd
 import sys
 import numpy as np
 
+def calc_area(row, limit=140):
+
+    w, h = row["width"],row["height"]
+    if w<limit and h<limit:
+        return True
+
+    return False
+
 def load_csv_anns(input_csv_file):
 
     dataframe = pd.read_csv(input_csv_file)
-    dataframe = dataframe[dataframe.Species!="VERTEBRATES, UNCLASSIFIED"]
-    intervals, bboxes, fill_ests = [], [], [] 
+    #dataframe = dataframe[dataframe.Species!="VERTEBRATES, UNCLASSIFIED"]
+    m_intervals, m_bboxes, m_fill_ests = [], [], []
+    s_intervals, s_bboxes, s_fill_ests = [], [], []
 
     for idx, row in dataframe.iterrows():
-        intervals.append(row["frame"])
-        bboxes.append([row["x"],row["y"],row["width"],row["height"]])
-        fill_ests.append(row["Fill Level"])
 
-    return intervals, bboxes, fill_ests
+        type_ = row["Category"]
+        if type_ != "Baskets": continue
+        
+        if row["Species"] == "VERTEBRATES, UNCLASSIFIED":
+            s_intervals.append(row["frame"])
+            s_bboxes.append([row["x"],row["y"],row["width"],row["height"]])
+            s_fill_ests.append(row["Fill Level"])
+        
+        elif calc_area(row):
+            m_intervals.append(row["frame"])
+            m_bboxes.append([row["x"],row["y"],row["width"],row["height"]])
+            m_fill_ests.append(row["Fill Level"])
 
-def get_tracker_anns(video_path, intervals, bboxes, fill_ests):
+    moving_anns = [m_intervals, m_bboxes, m_fill_ests]
+    static_anns = [s_intervals, s_bboxes, s_fill_ests]
 
+    return moving_anns, static_anns 
+
+def get_tracker_anns(video_path, anns, num_track_frames, debug=1):
+
+    intervals, bboxes, fill_ests = anns[0], anns[1], anns[2]
     cap = cv2.VideoCapture(video_path)
     frameid = 0
     
-    num_track_frames = 150
     trackers = [0] * len(intervals)
     cur_track_idx = None
     anns = []
@@ -49,20 +71,81 @@ def get_tracker_anns(video_path, intervals, bboxes, fill_ests):
                 ann = list(box) + [fill_ests[cur_track_idx]]
         
         if ann is None: continue
-        
+
+        if debug:
+            print(frameid)
+            vis_frame = draw_bboxes(frame, [ann])
+            cv2.imshow('vis_frame ', vis_frame)
+            cv2.waitKey(-1)
+
         anns.append([frameid] + ann)
     
     return anns
 
-def draw_bbox(org_image, ann, color=((255, 0, 0))):
+def dict_frame_anns(anns):
+
+    intervals, bboxes, fill_ests = anns[0], anns[1], anns[2]
+
+    frame_dict = {}
+
+    for interval, bbox, fill in zip(intervals, bboxes, fill_ests):
+        if interval not in frame_dict:
+            frame_dict[interval] = [bbox + [fill]]
+        else:
+            frame_dict[interval].append(bbox + [fill])
+    
+    return frame_dict
+
+def duplicate_anns(ann, start_fid, num_track_frames):
+    
+    ann = np.array(ann).reshape((-1, 5))
+    num_bboxes = ann.shape[0]
+    dup_anns = []
+
+    for num_frame in range(start_fid, start_fid + num_track_frames):
+        fids = [num_frame] * num_bboxes
+        fids = np.array(fids).reshape((-1, 1))
+        concat_dup_ann = np.concatenate((fids, ann), axis=1)
+        concat_dup_ann = concat_dup_ann.tolist()
+        dup_anns += concat_dup_ann
+
+    return dup_anns
+
+def get_static_anns(video_path, anns, num_track_frames, debug=0):
+
+    cap = cv2.VideoCapture(video_path)
+    frameid = 0
+    fdict = dict_frame_anns(anns)
+    preprocess_anns = []
+
+    while True:
+
+        ret, frame = cap.read()
+        if ret is False: break
+        frameid += 1
+
+        if frameid in fdict:
+            ann = fdict[frameid]
+            dup_ann = duplicate_anns(ann, frameid, num_track_frames)
+            preprocess_anns += dup_ann
+
+            if debug:
+                vis_frame = draw_bboxes(frame, ann)
+                cv2.imshow('vis_frame ', vis_frame)
+                cv2.waitKey(-1)
+
+    return preprocess_anns
+
+def draw_bboxes(org_image, anns, color=((255, 0, 0))):
 
     image = np.copy(org_image)
 
-    startX, startY, w, h = ann
-    endX, endY = startX + w, startY + h
-    startX, startY, endX, endY = int(startX), int(startY), int(endX), int(endY)
-    # image = cv2.putText(image, str(w) + ', ' + str(h), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
-    image = cv2.rectangle(image, (startX, startY), (endX, endY), color, 1)
+    for ann in anns:
+        startX, startY, w, h = ann[:-1]
+        endX, endY = startX + w, startY + h
+        startX, startY, endX, endY = int(startX), int(startY), int(endX), int(endY)
+        # image = cv2.putText(image, str(w) + ', ' + str(h), (startX, startY-5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 1, cv2.LINE_AA)        
+        image = cv2.rectangle(image, (startX, startY), (endX, endY), color, 1)
 
     return image
 
@@ -112,14 +195,20 @@ if __name__ == '__main__' :
     trackerTypes = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
     # tracker_type = tracker_types[2]
     
-    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/only_fish_116.csv'
-    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116_f.mp4'
-    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/det_est_ann_116.csv'
+    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/Harmony_12/2067840.csv'
+    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067840.mp4'
+    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/pp_2067840.csv'
+    num_track_static, num_track_move = 50, 30
+    moving_bckt_anns, static_bckt_anns = load_csv_anns(input_csv_file)
 
-    intervals, bboxes, fill_ests = load_csv_anns(input_csv_file)
+    print('moving bckt frames ', moving_bckt_anns[0])
+    print('static bckt frames ', static_bckt_anns[0])
 
-    anns = get_tracker_anns(video_path, intervals, bboxes, fill_ests)
+    move_anns = get_tracker_anns(video_path, moving_bckt_anns, num_track_move, debug=1)
+    
+    stat_anns = get_static_anns(video_path, static_bckt_anns, num_track_static, debug=1)
 
-    save_ann_csv(anns, save_csv_file)
+    tot_anns = move_anns + stat_anns
+    save_ann_csv(tot_anns, save_csv_file)
 
     # add_frame_nums(video_path)

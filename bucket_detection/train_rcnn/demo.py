@@ -178,7 +178,7 @@ def run_video():
 
 if __name__ == '__main__':
 
-    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116.mp4'
+    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068016.mp4'
     bckt_epoch_num = 46
     roi_box = [600, 530, 720, 655]
     roi_pad = 2

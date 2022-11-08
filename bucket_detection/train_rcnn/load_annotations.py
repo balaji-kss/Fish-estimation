@@ -188,8 +188,9 @@ def load_data(ann_dir, video_path, debug):
     labels = []
 
     skip_frames = 1
-    start_frame = 25442
     frame_ann_dict = populate_anns(ann_dir, skip_frames)
+    start_frame = min([key for key in frame_ann_dict.keys()])
+    print(start_frame)
     frames = populate_frames(video_path, skip_frames, start_frame)
 
     print('total frames: ', len(frames))
@@ -220,7 +221,7 @@ def load_data(ann_dir, video_path, debug):
 
         if 0:
             img = draw_bbox(frames[frameid], frame_ann_dict[key])
-            
+            img = cv2.rectangle(img, (roi[0], roi[1]), (roi[2], roi[3]), (0, 0, 255), 3)
             cv2.imshow('img ', img)
             cv2.waitKey(-1)
         
@@ -255,8 +256,8 @@ def save_data(data, anns, save_dir):
 if __name__ == "__main__":
 
     ann_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/csv_files/'
-    video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068116.mp4'
+    video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067840.mp4'
     save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
-    data, bboxes, labels = load_data(ann_dir, video_dir, debug=0)
+    data, bboxes, labels = load_data(ann_dir, video_dir, debug=1)
     save_data(data, bboxes, save_dir)
     
