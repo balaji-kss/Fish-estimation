@@ -126,7 +126,7 @@ def test():
 if __name__ == '__main__':
 
     input_res = 512
-    #train()
+    # train()
 
-    epoch_num = 16
+    epoch_num = 50
     test()

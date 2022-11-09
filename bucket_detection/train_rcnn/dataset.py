@@ -1,3 +1,4 @@
+from glob import glob
 import torch
 from torch.utils.data import Dataset
 import numpy as np
@@ -6,6 +7,8 @@ import cv2
 import os
 from torchvision import transforms
 import utils
+import glob
+import random
 
 class BucketDataset(Dataset):
     """Bucket dataset."""
@@ -19,8 +22,7 @@ class BucketDataset(Dataset):
                 on a sample.
         """
 
-        self.csv_path = os.path.join(root_dir, 'det_est_anns.csv')
-        self.anns = pd.read_csv(self.csv_path)
+        self.csv_paths = glob.glob(os.path.join(root_dir, '*.csv'))
         self.root_dir = root_dir
         self.input_res = input_res
         self.reformat_anns()
@@ -29,14 +31,21 @@ class BucketDataset(Dataset):
 
         reform_anns = {}
 
-        for i in range(len(self.anns)):
-            imgname, ann = self.anns.iloc[i, 0], self.anns.iloc[i, 1:]
-            if imgname not in reform_anns:
-                reform_anns[imgname] = [ann]
-            else:
-                reform_anns[imgname].append(ann)
+        for csv_path in self.csv_paths:
+            print('reading ', csv_path)
+            anns = pd.read_csv(csv_path)
+            for i in range(len(anns)):
+                imgname, ann = anns.iloc[i, 0], anns.iloc[i, 1:]
+                if imgname not in reform_anns:
+                    reform_anns[imgname] = [ann]
+                else:
+                    reform_anns[imgname].append(ann)
 
         self.anns = [[key, reform_anns[key]] for key in reform_anns.keys()]
+
+        #shuffle
+        for i in range(5):
+            random.shuffle(self.anns)
 
     def preprocess_boxes(self, ann, img_shape, scale=1):
 
@@ -85,7 +94,7 @@ class BucketDataset(Dataset):
         area = (bbox[:, 3] - bbox[:, 1]) * (bbox[:, 2] - bbox[:, 0])
         
         iscrowd = torch.zeros((bbox.shape[0],), dtype=torch.int64)
-        labels = torch.as_tensor([1], dtype=torch.int64)
+        labels = torch.ones((bbox.shape[0],), dtype=torch.int64)
 
         target = {}
         target["boxes"] = bbox
@@ -103,11 +112,13 @@ if __name__ == "__main__":
     root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
     input_res = 512
     dataset = BucketDataset(root_dir=root_dir, input_res=input_res)
+    num_samples = len(dataset)
+    print('num_samples: ', num_samples)
 
-    for i in range(len(dataset)):
+    for i in range(num_samples):
 
         image, target = dataset[i]
-        print(i, image.shape, target['boxes'].shape)
+        print(i, image.shape, target['boxes'].shape, target['labels'].shape)
 
         bbox = target['boxes']
         image = image.permute(1, 2, 0).numpy()

@@ -293,18 +293,18 @@ if __name__ == '__main__' :
 
     trackerTypes = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
     # tracker_type = tracker_types[2]
-    
-    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/Harmony_12/2067844.csv'
-    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067844.mp4'
-    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/pp_2067844.csv'
-    num_track = 60
-    num_track_act = 30
+    videoid = 2068112
+    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/Harmony_12/' + str(videoid) + '.csv'
+    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/' + str(videoid) + '.mp4'
+    save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/pp_' + str(videoid) + '.csv'
+    num_track = 5#60
+    num_track_act = 600#30
     ann_dict, act_dict = load_csv_anns(input_csv_file)
 
     print('bckt frames ', len(ann_dict), ann_dict.keys())
     
-    static_anns = get_tracker_anns(video_path, ann_dict, num_track, debug=0)
-    act_anns = track_bbox_act(video_path, act_dict, num_track_act, debug=0)
+    #static_anns = get_tracker_anns(video_path, ann_dict, num_track, debug=1)
+    act_anns = track_bbox_act(video_path, act_dict, num_track_act, debug=1)
     tot_anns = merge_anns(static_anns, act_anns)
     print(len(static_anns), len(act_anns), len(tot_anns))
     save_ann_csv(tot_anns, save_csv_file)

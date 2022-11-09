@@ -9,11 +9,15 @@ import os
 BASE_OUTPUT = "./output/"
 # define the path to the output model, label encoder, plots output
 # directory, and testing image paths
-MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models"])
+MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models/exp2"])
+
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+
 LE_PATH = os.path.sep.join([BASE_OUTPUT, "le.pickle"])
 PLOTS_PATH = os.path.sep.join([BASE_OUTPUT, "plots"])
 TEST_PATHS = os.path.sep.join([BASE_OUTPUT, "test_paths.txt"])
-root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train/data/'
+root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 PIN_MEMORY = True if DEVICE == "cuda" else False

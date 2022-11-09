@@ -70,24 +70,31 @@ def predict_bckt(model, input):
 
     return preds.tolist()
 
-def draw_res(org_image, roi_box, bckt_preds):
+def draw_res(org_image, roi_box, close_idx, bckt_preds):
 
     image = org_image.copy()
 
     cv2.rectangle(image, (roi_box[0], roi_box[1]), (roi_box[2], roi_box[3]), (255, 0, 0), 2)
 
-    for bckt_pred in bckt_preds:
+    for i in range(len(bckt_preds)):
+        
+        bckt_pred = bckt_preds[i]
 
         if fill_est:
             score, box, fill = bckt_pred[0], bckt_pred[1:-1], bckt_pred[-1]
             text = 'conf: ' + str(round(score, 3)) + ' fill: ' + str(round(fill, 3))
+            if close_idx is not None and i == close_idx:
+                box_color = (0, 255, 0)
+            else:
+                box_color = (0, 0, 255)
         else:
             score, box = bckt_pred[0], bckt_pred[1:]
             text = 'conf: ' + str(round(score, 3))
+            box_color = (0, 0, 255)
 
         box = [int(pt) for pt in box]
         image = cv2.putText(image, text, (box[0], box[1]-5), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (0, 0, 255), 1, cv2.LINE_AA)
-        cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), (0, 0, 255), 2)
+        cv2.rectangle(image, (box[0], box[1]), (box[2], box[3]), box_color, 2)
 
     return image
 
@@ -101,26 +108,77 @@ def filter_bckt_preds(bckt_preds, thresh):
     
     return filter_bckt_bboxes
 
-def reproject_bckt_bboxes(pad_roi_box, bckt_boxes):
+def reproject_bckt_bboxes(pad_roi_box, bckt_boxes, scale):
 
     reproj_bckt_bboxes = []
     for bckt_box in bckt_boxes:
         score, box = bckt_box[0], bckt_box[1:]
-        box[0], box[2] = box[0] + pad_roi_box[0], box[2] + pad_roi_box[0]
-        box[1], box[3] = box[1] + pad_roi_box[1], box[3] + pad_roi_box[1]
+        box[0], box[2] = box[0] * scale + pad_roi_box[0], box[2] * scale + pad_roi_box[0]
+        box[1], box[3] = box[1] * scale + pad_roi_box[1], box[3] * scale + pad_roi_box[1]
         reproj_bckt_bboxes.append([score] + box)
     
     return reproj_bckt_bboxes
 
 def detect_bucket(bckt_model, pre_frame, thresh):
 
+    # get pad crop
     pad_roi_box = utils.get_pad_crop(roi_box, roi_pad, pre_frame.shape)
-    input, roi_crop = preprocess_bckt_image(pre_frame, pad_roi_box, input_res)
-    predicts = predict_bckt(bckt_model, input)
-    filtered_preds = filter_bckt_preds(predicts, thresh)
-    reproj_preds = reproject_bckt_bboxes(pad_roi_box, filtered_preds)
 
-    return reproj_preds
+    # preprocess input
+    input, roi_crop = preprocess_bckt_image(pre_frame, pad_roi_box, input_res)
+    
+    # predict bucket
+    predicts = predict_bckt(bckt_model, input)
+
+    # filter based on thresh
+    filtered_preds = filter_bckt_preds(predicts, thresh)
+
+    # reproject on image
+    scale = roi_crop.shape[0] / input_res
+    reproj_preds = reproject_bckt_bboxes(pad_roi_box, filtered_preds, scale = scale)
+
+    return reproj_preds, roi_crop
+
+def calc_iou(box1, box2):
+	
+	x1 = max(box1[0], box2[0])
+	y1 = max(box1[1], box2[1])
+	x2 = min(box1[2], box2[2])
+	y2 = min(box1[3], box2[3])
+	
+	inter_area = max(0, x2 - x1 + 1) * max(0, y2 - y1 + 1)
+	
+	box1_area = (box1[2] - box1[0] + 1) * (box1[3] - box1[1] + 1)
+	box2_area = (box2[2] - box2[0] + 1) * (box2[3] - box2[1] + 1)
+	
+	iou = inter_area / float(box1_area + box2_area - inter_area)
+
+	return round(iou, 3)
+
+def get_closest_bckt(bckt_dets, roi_box, iou_thresh):
+
+    max_iou, cbox_idx = 0, None
+    
+    for i in range(len(bckt_dets)):
+        bckt_box = bckt_dets[i]
+        score, box = bckt_box[0], bckt_box[1:]
+        iou = calc_iou(roi_box, box)
+        if iou >= max_iou:
+            max_iou = iou
+            cbox_idx = i
+
+    if max_iou < iou_thresh:
+        cbox_idx = None
+
+    return cbox_idx
+
+def fillest_bound(fill_val, fill_range=(0.0, 1.0)):
+
+    minf, maxf = fill_range[0], fill_range[1]
+    fill_val = min(maxf, fill_val)
+    fill_val = max(minf, fill_val)
+
+    return fill_val
 
 def estimate_fill(fillest_model, bckt_dets, org_frame):
 
@@ -133,7 +191,8 @@ def estimate_fill(fillest_model, bckt_dets, org_frame):
         fill_input = fill_input.to(config.DEVICE)
         predictions = fillest_model(fill_input)
         prediction = predictions[0].detach().cpu().numpy()
-        fillest_res.append(bckt_det + [float(prediction[0])])
+        fill_val = fillest_bound(float(prediction[0]))
+        fillest_res.append(bckt_det + [fill_val])
 
     return fillest_res
 
@@ -146,6 +205,7 @@ def run_video():
     
     if write_video:
         out_video_path = video_path[:-4] + '_resf.mp4'
+        print('save video path: ', out_video_path)
         out = cv2.VideoWriter(out_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 15, (1280, 720))
 
     frameid = 0
@@ -154,23 +214,29 @@ def run_video():
 
         ret, frame = cap.read()
         if ret is False: break
+        frameid +=1
 
+        if frameid < 23000: continue
+        if frameid % 2 != 0:continue
+
+        print('frameid ', frameid)
         pre_frame = frame.copy()
 
-        bckt_dets = detect_bucket(bckt_model, pre_frame, bckt_thresh)
+        bckt_dets, roi_crop = detect_bucket(bckt_model, pre_frame, bckt_thresh)
+
+        close_bckt_idx = get_closest_bckt(bckt_dets, roi_box, iou_thresh)
 
         if fill_est:
             bckt_dets = estimate_fill(fillest_model, bckt_dets, frame)
 
-        disp_frame = draw_res(frame, roi_box, bckt_dets)
+        disp_frame = draw_res(frame, roi_box, close_bckt_idx, bckt_dets)
         
-        # cv2.imshow('disp_frame ', disp_frame)
-        # cv2.waitKey(-1)
+        cv2.imshow('disp_frame ', disp_frame)
+        cv2.imshow('roi_crop ', roi_crop)
+        cv2.waitKey(-1)
 
         if write_video:
             out.write(disp_frame)
-
-        frameid +=1
 
     cap.release()
     if write_video:
@@ -178,14 +244,15 @@ def run_video():
 
 if __name__ == '__main__':
 
-    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/videos/2068016.mp4'
-    bckt_epoch_num = 46
+    video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067840.mp4'
+    bckt_epoch_num = 50
     roi_box = [600, 530, 720, 655]
-    roi_pad = 2
+    roi_pad = 2.
     input_res = 512
     fillest_input_res = 224
     write_video = 1
     fill_est = 1
-    bckt_thresh = 0.8
+    bckt_thresh = 0.2
+    iou_thresh = 0.15
 
     run_video()

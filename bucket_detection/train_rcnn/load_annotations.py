@@ -216,7 +216,7 @@ def load_data(ann_dir, video_path, debug):
 
 def save_data(data, anns, save_dir):
 
-    imgdir_name = 'images' + str(video_id) + '/'
+    imgdir_name = 'images_' + str(video_id) + '/'
     save_img_dir = os.path.join(save_dir, imgdir_name)
 
     if not os.path.exists(save_img_dir):
@@ -232,7 +232,7 @@ def save_data(data, anns, save_dir):
         cv2.imwrite(save_img_path, img)
         img_id += 1
 
-    csv_path = os.path.join(save_dir, 'det_est_anns.csv')
+    csv_path = os.path.join(save_dir, str(video_id) + '.csv')
     with open(csv_path, 'w+') as f:
         writer = csv.writer(f)
 
@@ -246,10 +246,12 @@ def save_data(data, anns, save_dir):
 
 if __name__ == "__main__":
 
+    video_id = 2067844
+
     ann_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/csv_files/'
-    video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/2067840.mp4'
+    video_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/' + str(video_id) + '.mp4'
     save_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
-    video_id = 2067840
+    
     data, bboxes, labels = load_data(ann_dir, video_dir, debug=0)
     print(len(data), len(bboxes), len(labels))
     save_data(data, bboxes, save_dir)
