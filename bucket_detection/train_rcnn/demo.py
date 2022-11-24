@@ -1,3 +1,4 @@
+from re import M
 import config
 import torch
 import os
@@ -137,18 +138,6 @@ def detect_bucket(bckt_model, pre_frame, thresh):
 
     return reproj_preds, roi_crop
 
-def is_arithmetic(nums):
-    nums = sorted(nums)
-
-    if len(nums) > 1:
-        const = nums[1] - nums[0]
-    else:
-        return True
-    for i in range(len(nums)-1):
-        if nums[i+1] - nums[i] != const:
-            return False
-    return True
-
 def calc_iou(box1, box2):
 	
 	x1 = max(box1[0], box2[0])
@@ -206,6 +195,59 @@ def estimate_fill(fillest_model, bckt_dets, org_frame):
 
     return fillest_res
 
+def get_avg_fill(fill_counts):
+    
+    fill_counts_np = np.array(fill_counts)
+    tot = fill_counts_np.shape[0]
+    fill_counts_np = fill_counts_np[fill_counts_np != -1]
+    count_avg = fill_counts_np.shape[0] / tot
+    fill_avg = sum(fill_counts_np) / fill_counts_np.shape[0] 
+
+    return fill_avg, count_avg
+
+def populate_fill(bckt_dets, close_bckt_idx, in_hold, fill_counts):
+
+    fill_avg = None
+
+    if close_bckt_idx is not None:
+        fill_val = bckt_dets[close_bckt_idx][-1]
+        fill_counts.append(fill_val)
+        in_hold = True
+    elif in_hold:
+        fill_counts.append(-1)
+    
+    req_count = time_fill_avg * fps // skip_frame
+    print('pop req_count ', req_count, len(fill_counts))
+
+    if len(fill_counts) >= req_count:
+
+        favg, cavg = get_avg_fill(fill_counts[:req_count+1])
+
+        if cavg > min_avg_fill:
+            fill_avg = favg
+        else:
+            in_hold = False 
+            fill_counts = []
+
+    return in_hold, fill_counts, fill_avg
+
+def check_act_end(fill_counts):
+
+    req_count = time_new_bckt * fps //skip_frame
+    print('end act req count: ', req_count)
+    print('fill req count: ',fill_counts[-req_count:], len(fill_counts[-req_count:]))
+    if sum(fill_counts[-req_count:]) == -req_count:
+        return True
+    
+    return False
+
+def disp_stats(frame, fill_avg, global_bckt_count):
+
+    disp_frame = cv2.putText(frame, "Total Fill: " + str(round(fill_avg, 2)), (40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA) 
+    disp_frame = cv2.putText(disp_frame, "Buckets: " + str(global_bckt_count), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
+
+    return disp_frame
+
 def run_video():
 
     bckt_model = load_bckt_model(bckt_epoch_num)
@@ -219,12 +261,12 @@ def run_video():
         out = cv2.VideoWriter(out_video_path, cv2.VideoWriter_fourcc(*'mp4v'), 15, (1280, 720))
 
     frameid = 0
-    flag=0
-    fills=[]
-    buckets=0
-    multiplier=2
-    min_detections_per_bucket=6
-    no_det_frames=[]
+    fill_counts = []
+    in_hold = False
+    global_bckt_count = 0
+    global_fill_avg = 0
+    prev_fill_avg = 0.0
+
     while True:
 
         ret, frame = cap.read()
@@ -232,8 +274,7 @@ def run_video():
         frameid +=1
 
         if frameid < 24000: continue
-        if frameid % multiplier != 0:continue
-        
+        if frameid % skip_frame != 0:continue
         
         pre_frame = frame.copy()
 
@@ -241,47 +282,25 @@ def run_video():
 
         close_bckt_idx = get_closest_bckt(bckt_dets, roi_box, iou_thresh)
         
-        #No detection for 6 seconds and we conclude that bucket has changed
-        if(close_bckt_idx is None and flag==1):
-            if(len(no_det_frames)<35):
-                if(is_arithmetic(no_det_frames+[frameid])):
-                    no_det_frames.append(frameid)
-
-                else:
-                    no_det_frames=[]
-            else:
-                print(len(fills))
-                print('frameid ', frameid)
-                if(len(fills)>=min_detections_per_bucket):
-                
-                    global_fills.append(sum(fills)/len(fills))
-                    buckets+=1
-                    no_det_frames=[]
-                flag=0
-                
-                fills=[]
-        
         if fill_est:
             bckt_dets = estimate_fill(fillest_model, bckt_dets, frame)
-        if(close_bckt_idx is not None and flag==0):
-            flag=1
-            start=frameid
-        if(close_bckt_idx is not None and flag==1):
-            if(frameid<start+15):
-                closest_bucket_fill=estimate_fill(fillest_model,[bckt_dets[close_bckt_idx]],frame)
-                fills.append(closest_bucket_fill[0][-1])
-            
-        if display:
-            disp_frame = draw_res(frame, roi_box, close_bckt_idx, bckt_dets)
-            if(len(global_fills)>0):
-                disp_frame = cv2.putText(disp_frame, "Total Fill: "+str(round(sum(global_fills),2)), (40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA) 
-                disp_frame = cv2.putText(disp_frame, "Buckets: "+str(buckets), (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA) 
-            else:
-                disp_frame = cv2.putText(disp_frame, "Total Fill: 0", (40, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA) 
-                disp_frame = cv2.putText(disp_frame, "Buckets: 0", (40, 80), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2, cv2.LINE_AA)
-            cv2.imshow('disp_frame ', disp_frame)
-            cv2.imshow('roi_crop ', roi_crop)
-            cv2.waitKey(1)
+
+        print('frame id ', frameid, in_hold)
+        in_hold, fill_counts, fill_avg = populate_fill(bckt_dets, close_bckt_idx, in_hold, fill_counts)
+
+        if check_act_end(fill_counts):
+            if fill_avg is not None:
+                global_bckt_count += 1
+                in_hold = False
+                fill_counts = []
+                global_fill_avg += fill_avg
+
+        disp_frame = draw_res(frame, roi_box, close_bckt_idx, bckt_dets)
+        disp_frame = disp_stats(disp_frame, global_fill_avg, global_bckt_count)
+
+        cv2.imshow('disp_frame ', disp_frame)
+        cv2.imshow('roi_crop ', roi_crop)
+        cv2.waitKey(-1)
 
         if write_video:
             out.write(disp_frame)
@@ -298,12 +317,14 @@ if __name__ == '__main__':
     roi_pad = 2.
     input_res = 512
     fillest_input_res = 224
-    write_video = 1
+    write_video = 0
     fill_est = 1
     bckt_thresh = 0.2
     iou_thresh = 0.15
-    display=1
-    flag=0
-    global_fills=[]
+    fps = 15
+    skip_frame = 2
+    time_fill_avg = 2
+    time_new_bckt = 6
+    min_avg_fill = 0.4
 
     run_video()
