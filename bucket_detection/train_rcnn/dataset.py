@@ -36,6 +36,7 @@ class BucketDataset(Dataset):
             anns = pd.read_csv(csv_path)
             for i in range(len(anns)):
                 imgname, ann = anns.iloc[i, 0], anns.iloc[i, 1:]
+                print('ann  ', ann, ann.shape)
                 if imgname not in reform_anns:
                     reform_anns[imgname] = [ann]
                 else:

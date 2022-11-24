@@ -9,7 +9,11 @@ import os
 BASE_OUTPUT = "./output/"
 # define the path to the output model, label encoder, plots output
 # directory, and testing image paths
-MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models"])
+MODEL_DIR = os.path.sep.join([BASE_OUTPUT, "models/exp5"])
+
+if not os.path.exists(MODEL_DIR):
+    os.makedirs(MODEL_DIR)
+    
 root_dir = "/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/"
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"

@@ -1,5 +1,5 @@
 # import the necessary packages
-from dataset import FillDataset, remap_image
+from dataset import FillDataset
 import config
 from torch.utils.data import DataLoader
 from torch.optim import lr_scheduler
@@ -9,6 +9,7 @@ import os
 from model import Network
 import cv2
 import numpy as np
+import utils
 
 def data_loader(input_res):
 
@@ -70,6 +71,16 @@ def train():
             model_path = os.path.join(config.MODEL_DIR, str(epoch) + '.pth') 
             torch.save(model.state_dict(), model_path)
 
+def load_fillest_model():
+    
+    model = Network(num_classes=config.NUM_CLASSES)
+    model_path = os.path.join(config.MODEL_DIR, str(epoch_num) + '.pth') 
+    model.load_state_dict(torch.load(model_path))
+    model = model.to(config.DEVICE)
+    model.eval()
+
+    return model
+
 def test():
 
     model = load_fillest_model()
@@ -95,7 +106,7 @@ def test():
         print('gt: ', gt_fill_val, ' pred: ', prediction)
         print('loss: ', loss, ' avg loss: ', avg_loss)
         
-        image = remap_image(image)
+        image = utils.remap_image(image)
         cv2.imshow('image ', image)
         cv2.waitKey(-1)
 

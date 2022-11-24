@@ -35,5 +35,5 @@ LABELS = 1.0
 BBOX = 1.0
 
 ##### TEST #####
-FILL_MODEL_PATH = "/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/fill_estimation/output/models/50.pth"
+FILL_MODEL_PATH = "/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/fill_estimation/output/models/exp5/50.pth"
 FILL_NUM_CLASSES = 1

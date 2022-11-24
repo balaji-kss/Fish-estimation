@@ -206,6 +206,37 @@ def estimate_fill(fillest_model, bckt_dets, org_frame):
 
     return fillest_res
 
+def process_activity_end(no_det_frames,fills,min_detections_per_bucket,buckets,global_fills,frameid):
+    
+    if(len(no_det_frames)<35):
+        check_frame_continuity(no_det_frames,frameid)
+                
+    else:
+        print("Activity Finished")
+        buckets,flag=record_fill(fills,min_detections_per_bucket,no_det_frames,buckets,global_fills)
+
+
+
+def check_frame_continuity(no_det_frames,frameid):
+    
+    if(is_arithmetic(no_det_frames+[frameid])):
+                    no_det_frames.append(frameid)
+
+    else:
+                    no_det_frames=[]
+
+def record_fill(fills,min_detections_per_bucket,no_det_frames,buckets,global_fills):
+    
+    if(len(fills)>=min_detections_per_bucket):
+                
+                    global_fills.append(sum(fills)/len(fills))
+                    buckets+=1
+                    no_det_frames=[]
+    flag=0
+                
+    fills=[]
+    return buckets,flag
+
 def run_video():
 
     bckt_model = load_bckt_model(bckt_epoch_num)
@@ -243,33 +274,28 @@ def run_video():
         
         #No detection for 6 seconds and we conclude that bucket has changed
         if(close_bckt_idx is None and flag==1):
-            if(len(no_det_frames)<35):
-                if(is_arithmetic(no_det_frames+[frameid])):
-                    no_det_frames.append(frameid)
-
-                else:
-                    no_det_frames=[]
-            else:
-                print(len(fills))
-                print('frameid ', frameid)
-                if(len(fills)>=min_detections_per_bucket):
+            process_activity_end(no_det_frames,fills,min_detections_per_bucket,buckets,global_fills,frameid)
+            
                 
-                    global_fills.append(sum(fills)/len(fills))
-                    buckets+=1
-                    no_det_frames=[]
-                flag=0
-                
-                fills=[]
         
         if fill_est:
             bckt_dets = estimate_fill(fillest_model, bckt_dets, frame)
+        
+        
         if(close_bckt_idx is not None and flag==0):
             flag=1
             start=frameid
+        
+        
         if(close_bckt_idx is not None and flag==1):
             if(frameid<start+15):
                 closest_bucket_fill=estimate_fill(fillest_model,[bckt_dets[close_bckt_idx]],frame)
                 fills.append(closest_bucket_fill[0][-1])
+                
+            
+            
+            
+
             
         if display:
             disp_frame = draw_res(frame, roi_box, close_bckt_idx, bckt_dets)

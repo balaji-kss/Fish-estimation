@@ -6,6 +6,8 @@ import cv2
 import os
 from torchvision import transforms
 import utils
+import glob
+import random
 
 class FillDataset(Dataset):
     """Fill dataset."""
@@ -19,10 +21,26 @@ class FillDataset(Dataset):
                 on a sample.
         """
 
-        self.csv_path = os.path.join(root_dir, 'det_est_anns.csv')
-        self.anns = pd.read_csv(self.csv_path)
+        self.csv_paths = glob.glob(os.path.join(root_dir, '*.csv'))
         self.root_dir = root_dir
         self.input_res = input_res
+        self.populate_data()
+
+    def populate_data(self):
+        
+        reform_anns = []
+        for csv_path in self.csv_paths:
+            print('reading ', csv_path)
+            anns = pd.read_csv(csv_path)
+            for i in range(len(anns)):
+                imgname, ann = anns.iloc[i, 0], list(anns.iloc[i, 1:])
+                reform_anns.append([imgname] + ann)
+
+        self.anns = reform_anns
+
+        #shuffle
+        for i in range(5):
+            random.shuffle(self.anns)
 
     def __len__(self):
         
@@ -33,9 +51,11 @@ class FillDataset(Dataset):
         if torch.is_tensor(idx):
             idx = idx.tolist()
 
-        img_path = os.path.join(self.root_dir, self.anns.iloc[idx, 0])
+        rel_img_path, anns = self.anns[idx][0], self.anns[idx][1:] 
+
+        img_path = os.path.join(self.root_dir, rel_img_path)
         image = cv2.imread(img_path)
-        bbox, fill_val = self.anns.iloc[idx, 1:-1], self.anns.iloc[idx, -1]
+        bbox, fill_val = anns[:-1], anns[-1]
 
         bckt_crop = utils.get_bucket_roi(image, bbox)
         bckt_crop = utils.preprocess_image(bckt_crop, self.input_res)
@@ -48,7 +68,7 @@ class FillDataset(Dataset):
 if __name__ == "__main__":
 
     root_dir = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/train_rcnn/data/'
-    input_res = 512
+    input_res = 224
     dataset = FillDataset(root_dir=root_dir, input_res=input_res)
 
     for i in range(len(dataset)):
