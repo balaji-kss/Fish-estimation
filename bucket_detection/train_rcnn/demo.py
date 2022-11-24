@@ -217,7 +217,6 @@ def populate_fill(bckt_dets, close_bckt_idx, in_hold, fill_counts):
         fill_counts.append(-1)
     
     req_count = time_fill_avg * fps // skip_frame
-    print('pop req_count ', req_count, len(fill_counts))
 
     if len(fill_counts) >= req_count:
 
@@ -234,8 +233,7 @@ def populate_fill(bckt_dets, close_bckt_idx, in_hold, fill_counts):
 def check_act_end(fill_counts):
 
     req_count = time_new_bckt * fps //skip_frame
-    print('end act req count: ', req_count)
-    print('fill req count: ',fill_counts[-req_count:], len(fill_counts[-req_count:]))
+    
     if sum(fill_counts[-req_count:]) == -req_count:
         return True
     
@@ -285,7 +283,6 @@ def run_video():
         if fill_est:
             bckt_dets = estimate_fill(fillest_model, bckt_dets, frame)
 
-        print('frame id ', frameid, in_hold)
         in_hold, fill_counts, fill_avg = populate_fill(bckt_dets, close_bckt_idx, in_hold, fill_counts)
 
         if check_act_end(fill_counts):
