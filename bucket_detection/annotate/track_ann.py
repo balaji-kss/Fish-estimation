@@ -207,21 +207,6 @@ def dict_frame_anns(anns):
     
     return frame_dict
 
-def duplicate_anns(ann, start_fid, num_track_frames):
-    
-    ann = np.array(ann).reshape((-1, 5))
-    num_bboxes = ann.shape[0]
-    dup_anns = []
-
-    for num_frame in range(start_fid, start_fid + num_track_frames):
-        fids = [num_frame] * num_bboxes
-        fids = np.array(fids).reshape((-1, 1))
-        concat_dup_ann = np.concatenate((fids, ann), axis=1)
-        concat_dup_ann = concat_dup_ann.tolist()
-        dup_anns += concat_dup_ann
-
-    return dup_anns
-
 def draw_bboxes(org_image, anns, color=((255, 0, 0))):
 
     image = np.copy(org_image)
@@ -288,25 +273,24 @@ def merge_anns(static_anns, act_anns):
 
 if __name__ == '__main__' :
 
-    # Set up tracker.
-    # Instead of MIL, you can also use
-
-    trackerTypes = ['BOOSTING', 'MIL','KCF', 'TLD', 'MEDIANFLOW', 'GOTURN', 'MOSSE', 'CSRT']
-    # tracker_type = tracker_types[2]
-    videoid = 2068112
-    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/Harmony_12/' + str(videoid) + '.csv'
+    videoid = 2916992
+    input_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/Harmony_5/' + str(videoid) + '.csv'
     video_path = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/' + str(videoid) + '.mp4'
     save_csv_file = '/home/balaji/Documents/code/RSL/Fish/Fish-estimation/bucket_detection/annotate/pp_' + str(videoid) + '.csv'
-    num_track = 5#60
-    num_track_act = 600#30
+    num_track = 1#60
+    num_track_act = 1#30
     ann_dict, act_dict = load_csv_anns(input_csv_file)
 
-    print('bckt frames ', len(ann_dict), ann_dict.keys())
+    print('bckt frames ', len(act_dict), act_dict.keys())
     
-    #static_anns = get_tracker_anns(video_path, ann_dict, num_track, debug=1)
+    print('load static_anns ....')
+    static_anns = get_tracker_anns(video_path, ann_dict, num_track, debug=1)
+
+    print('load moving_anns ....')
     act_anns = track_bbox_act(video_path, act_dict, num_track_act, debug=1)
-    tot_anns = merge_anns(static_anns, act_anns)
-    print(len(static_anns), len(act_anns), len(tot_anns))
-    save_ann_csv(tot_anns, save_csv_file)
+    
+    # tot_anns = merge_anns(static_anns, act_anns)
+    # print(len(static_anns), len(act_anns), len(tot_anns))
+    # save_ann_csv(tot_anns, save_csv_file)
 
     # add_frame_nums(video_path)

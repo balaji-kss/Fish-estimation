@@ -433,7 +433,7 @@ def process_section(
     logging.info(f"Processing section: {section_name}")
 
     for media_index, media in enumerate(medias):
-        if media.id in [2067840,2067844,2068112,2068120,2067865]:
+        if(media.id in [2916992,2916795]):
             msg = f"Processing localizations of media (ID={media.id}) {media_index+1}/{len(medias)}"
             print(msg)
             logging.info(msg)
@@ -716,7 +716,7 @@ def main():
     logger.info(args)
 
     # Create the report(s) and thumbnail(s)
-    sections=["Harmony_12/31 singleview"]
+    sections=["Harmony_5/29 singleview"]
     # sections=["NE_Harmony_10/14 singleview"]
     for section in sections:
         process_project(
